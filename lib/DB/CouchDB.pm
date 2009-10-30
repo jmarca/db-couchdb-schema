@@ -52,14 +52,13 @@ Optional options: (port => $db_port)
 
 =cut
 
-sub new{
-    my $class = shift;
-    my %opts = @_;
+sub new {
+    my ($class,%opts)  = @_;
     $opts{port} = 5984
-        if (!exists $opts{port});
+      if ( !exists $opts{port} );
     my $obj = {%opts};
     $obj->{json} = JSON->new();
-    return bless $obj, $class; 
+    return bless $obj, $class;
 }
 
 =head2 Accessors
@@ -136,10 +135,29 @@ sub handle_blessed {
     if ($set) {
         $json->allow_blessed(1);
         $json->convert_blessed(1);
-    } else {
+    }
+    else {
         $json->allow_blessed(0);
         $json->convert_blessed(0);
     }
+    return $self;
+}
+
+sub json_pretty {
+    my $self = shift;
+    my $enable  = shift;
+
+    my $json = $self->json();
+    $json->pretty($enable);
+    return $self;
+}
+
+sub json_compact {
+    my $self = shift;
+    my $enable  = shift;
+
+    my $json = $self->json();
+    $json->compact($enable);
     return $self;
 }
 
@@ -151,13 +169,13 @@ sub handle_blessed {
 
 sub all_dbs {
     my $self = shift;
-    my $args = shift; ## do we want to reduce the view?
-    my $uri = $self->_uri_all_dbs();
+    my $args = shift;                   ## do we want to reduce the view?
+    my $uri  = $self->_uri_all_dbs();
     if ($args) {
         my $argstring = _valid_view_args($args);
         $uri->query($argstring);
     }
-    return $self->_call(GET => $uri); 
+    return $self->_call( GET => $uri );
 }
 
 =head2 all_docs
@@ -170,12 +188,12 @@ sub all_dbs {
 sub all_docs {
     my $self = shift;
     my $args = shift;
-    my $uri = $self->_uri_db_docs();
+    my $uri  = $self->_uri_db_docs();
     if ($args) {
         my $argstring = _valid_view_args($args);
         $uri->query($argstring);
     }
-    return DB::CouchDB::Iter->new($self->_call(GET => $uri));
+    return DB::CouchDB::Iter->new( $self->_call( GET => $uri ) );
 }
 
 =head2 db_info
@@ -186,7 +204,7 @@ sub all_docs {
 
 sub db_info {
     my $self = shift;
-    return DB::CouchDB::Result->new($self->_call(GET => $self->_uri_db()));
+    return DB::CouchDB::Result->new( $self->_call( GET => $self->_uri_db() ) );
 }
 
 =head2 create_db
@@ -199,7 +217,7 @@ Creates the database in the CouchDB server.
 
 sub create_db {
     my $self = shift;
-    return DB::CouchDB::Result->new($self->_call(PUT => $self->_uri_db()));
+    return DB::CouchDB::Result->new( $self->_call( PUT => $self->_uri_db() ) );
 }
 
 =head2 delete_db
@@ -212,7 +230,8 @@ deletes the database in the CouchDB server
 
 sub delete_db {
     my $self = shift;
-    return DB::CouchDB::Result->new($self->_call(DELETE => $self->_uri_db()));
+    return DB::CouchDB::Result->new(
+        $self->_call( DELETE => $self->_uri_db() ) );
 }
 
 =head2 create_doc
@@ -226,13 +245,11 @@ id/name.
 
 sub create_doc {
     my $self = shift;
-    my $doc = shift;
+    my $doc  = shift;
     my $jdoc = $self->json()->encode($doc);
     return DB::CouchDB::Result->new(
-        $self->_call(POST => $self->_uri_db(), $jdoc)
-    );
+        $self->_call( POST => $self->_uri_db(), $jdoc ) );
 }
-
 
 =head2 bulk_docs
 
@@ -258,11 +275,33 @@ bulk_docs api call
 =cut
 
 sub bulk_docs {
-    my $self = shift;
-    my $docref = shift;
-    my $jdocs = $self->json()->encode({'docs'=>$docref});
-    my $uri = $self-> _uri_db_bulk_doc();
-    my $array_ref =  $self->_call(POST => $uri, $jdocs);
+    my $self      = shift;
+    my $docref    = shift;
+    my $jdocs     = $self->json()->encode( { 'docs' => $docref } );
+    my $uri       = $self->_uri_db_bulk_doc();
+    my $array_ref = $self->_call( POST => $uri, $jdocs );
+    return $array_ref;
+}
+
+=head2 compact
+
+compact api call
+
+    $db->compact(); # blocks, I guess.  returns null.  This isn't a
+    great function to call from this library, but sometimes you need
+    it because the db grows without bounds as more and more revisions
+    are made to documents
+
+    Anyway, perhaps it is a good thing that this call blocks, because
+    the wiki says that _compact calls are a bad idea when lots of
+    writes are going on.
+
+=cut
+
+sub compact {
+    my $self      = shift;
+    my $uri       = $self->_uri_db_compact();
+    my $array_ref = $self->_call( POST => $uri );
     return $array_ref;
 }
 
@@ -276,11 +315,10 @@ runs a temporary view.
 
 sub temp_view {
     my $self = shift;
-    my $doc = shift;
+    my $doc  = shift;
     my $jdoc = $self->json()->encode($doc);
     return DB::CouchDB::Iter->new(
-        $self->_call(POST => $self->uri_db_temp_view(), $jdoc)
-    );
+        $self->_call( POST => $self->uri_db_temp_view(), $jdoc ) );
 }
 
 =head2 create_named_doc
@@ -304,16 +342,20 @@ id is stored in the doc will be used instead.
 sub create_named_doc {
     my $self = shift;
     my $args = shift;
-    my $doc = $args->{'doc'};
-    my $id  = $args->{'id'};
-    if(!$id){
-      $id = $doc->{'_id'};
+    my $doc  = $args->{'doc'};
+    my $id   = $args->{'id'};
+    if ( !$id ) {
+        $id = $doc->{'_id'};
     }
-    if (!$id){
-        return {error => '0', reason => 'no id in arguments hash, or in document'};
+    if ( !$id ) {
+        return {
+            error  => '0',
+            reason => 'no id in arguments hash, or in document'
+        };
     }
     my $jdoc = $self->json()->encode($doc);
-    return DB::CouchDB::Result->new($self->_call(PUT => $self->_uri_db_doc($id), $jdoc));
+    return DB::CouchDB::Result->new(
+        $self->_call( PUT => $self->_uri_db_doc($id), $jdoc ) );
 }
 
 =head2 update_doc
@@ -343,16 +385,17 @@ blessed objects.
 sub update_doc {
     my $self = shift;
     my $args = shift;
-    my $doc = $args->{'doc'};
-    my $id  = $args->{'id'};
-    if(!$id){
-      $id = $doc->{'_id'};
+    my $doc  = $args->{'doc'};
+    my $id   = $args->{'id'};
+    if ( !$id ) {
+        $id = $doc->{'_id'};
     }
     if (!$id){
         return DB::CouchDB::Result->new( {error => '0', reason => 'no id in arguments hash, or in document'} );
     }
     my $jdoc = $self->json()->encode($doc);
-    return DB::CouchDB::Result->new($self->_call(PUT => $self->_uri_db_doc($id), $jdoc));
+    return DB::CouchDB::Result->new(
+        $self->_call( PUT => $self->_uri_db_doc($id), $jdoc ) );
 }
 
 =head2 delete_doc
@@ -367,11 +410,11 @@ of the doc the update will fail.
 
 sub delete_doc {
     my $self = shift;
-    my $doc = shift;
-    my $rev = shift;
-    my $uri = $self->_uri_db_doc($doc);
-    $uri->query('rev='.$rev);
-    return DB::CouchDB::Result->new($self->_call(DELETE => $uri));
+    my $doc  = shift;
+    my $rev  = shift;
+    my $uri  = $self->_uri_db_doc($doc);
+    $uri->query( 'rev=' . $rev );
+    return DB::CouchDB::Result->new( $self->_call( DELETE => $uri ) );
 }
 
 =head2 get_doc
@@ -384,8 +427,9 @@ Gets a doc in the database.
 
 sub get_doc {
     my $self = shift;
-    my $doc = shift;
-    return DB::CouchDB::Result->new($self->_call(GET => $self->_uri_db_doc($doc)));
+    my $doc  = shift;
+    return DB::CouchDB::Result->new(
+        $self->_call( GET => $self->_uri_db_doc($doc) ) );
 }
 
 =head2 view
@@ -419,93 +463,101 @@ parameters
 sub view {
     my $self = shift;
     my $view = shift;
-    my $args = shift; ## do we want to reduce the view?
-    my $uri = $self->_uri_db_view($view);
+    my $args = shift;                        ## do we want to reduce the view?
+    my $uri  = $self->_uri_db_view($view);
     if ($args) {
         my $argstring = _valid_view_args($args);
         $uri->query($argstring);
     }
-    return DB::CouchDB::Iter->new($self->_call(GET => $uri));
+    return DB::CouchDB::Iter->new( $self->_call( GET => $uri ) );
 }
 
 sub _valid_view_args {
     my $args = shift;
     my $string;
-    my @str_parts = map {"$_=$args->{$_}"} keys %$args;
-    $string = join('&', @str_parts);
+    my @str_parts = map { "$_=$args->{$_}" } keys %$args;
+    $string = join( '&', @str_parts );
 
     return $string;
 }
 
 sub uri {
     my $self = shift;
-    my $u = URI->new();
+    my $u    = URI->new();
     $u->scheme("http");
-    $u->host($self->{host}.':'.$self->{port});
+    $u->host( $self->{host} . ':' . $self->{port} );
     return $u;
 }
 
 sub credentials {
-    my $self = shift;
-    my $netloc = join q{:},$self->{host},$self->{port};
-    my $realm = $self->{'realm'} ||'administrator';
-    return ($netloc,$realm,$self->{'user'},$self->{'password'});
+    my $self   = shift;
+    my $netloc = join q{:}, $self->{host}, $self->{port};
+    my $realm  = $self->{'realm'} || 'administrator';
+    return ( $netloc, $realm, $self->{'user'}, $self->{'password'} );
 }
 
 sub _uri_all_dbs {
     my $self = shift;
-    my $uri = $self->uri();
+    my $uri  = $self->uri();
     $uri->path('/_all_dbs');
     return $uri;
 }
 
 sub _uri_db {
     my $self = shift;
-    my $db = $self->{db};
-    my $uri = $self->uri();
-    $uri->path('/'.$db);
+    my $db   = $self->{db};
+    my $uri  = $self->uri();
+    $uri->path( '/' . $db );
     return $uri;
 }
 
 sub _uri_db_docs {
     my $self = shift;
-    my $db = $self->{db};
-    my $uri = $self->uri();
-    $uri->path('/'.$db.'/_all_docs');
+    my $db   = $self->{db};
+    my $uri  = $self->uri();
+    $uri->path( '/' . $db . '/_all_docs' );
     return $uri;
 }
 
 sub _uri_db_doc {
     my $self = shift;
-    my $db = $self->{db};
-    my $doc = shift;
-    my $uri = $self->uri();
-    $uri->path('/'.$db.'/'.$doc);
+    my $db   = $self->{db};
+    my $doc  = shift;
+    my $uri  = $self->uri();
+    $uri->path( '/' . $db . '/' . $doc );
     return $uri;
 }
 
 sub _uri_db_bulk_doc {
     my $self = shift;
-    my $db = $self->{db};
-    my $uri = $self->uri();
-    $uri->path('/'.$db.'/_bulk_docs');
+    my $db   = $self->{db};
+    my $uri  = $self->uri();
+    $uri->path( '/' . $db . '/_bulk_docs' );
+    return $uri;
+}
+
+sub _uri_db_compact {
+    my $self = shift;
+    my $db   = $self->{db};
+    my $uri  = $self->uri();
+    $uri->path( '/' . $db . '/_compact' );
     return $uri;
 }
 
 sub _uri_db_view {
     my $self = shift;
-    my $db = $self->{db};
-    my @view = split(/\//, shift, 2);
-    my $uri = $self->uri();
-    $uri->path('/'.$db.'/_design/'.$view[0].'/_view/'.$view[1]);
+    my $db   = $self->{db};
+    my @view = split( /\//, shift, 2 );
+    my $uri  = $self->uri();
+    $uri->path( '/' . $db . '/_design/' . $view[0] . '/_view/' . $view[1] );
     return $uri;
 }
 
 sub uri_db_temp_view {
     my $self = shift;
-    my $db = $self->{db};
-    my $uri = $self->uri();
-    $uri->path('/'.$db.'/_temp_view');
+    my $db   = $self->{db};
+    my $uri  = $self->uri();
+    $uri->path( '/' . $db . '/_temp_view' );
     return $uri;
 
 }
@@ -516,25 +568,21 @@ sub _call {
     my $uri     = shift;
     my $content = shift;
 
-    my $req     = HTTP::Request->new($method, $uri);
-    $req->content(Encode::encode('utf8', $content));
+    my $req = HTTP::Request->new( $method, $uri );
+    $req->content( Encode::encode( 'utf8', $content ) );
 
     my $ua = LWP::UserAgent->new();
 
-    if($self->{'user'} || $self->{'password'}){
-      $ua->credentials( $self->credentials());
+    if ( $self->{'user'} || $self->{'password'} ) {
+        $ua->credentials( $self->credentials() );
     }
 
     my $return = $ua->request($req);
-    my $response = $return->decoded_content(
-		default_charset => 'utf8'
-    );
+    my $response = $return->decoded_content( default_charset => 'utf8' );
     my $decoded;
-    eval {
-        $decoded = $self->json()->decode($response);
-    };
+    eval { $decoded = $self->json()->decode($response); };
     if ($@) {
-        return {error => $return->code, reason => $response};
+        return { error => $return->code, reason => $response };
     }
     return $decoded;
 }
@@ -542,18 +590,19 @@ sub _call {
 package DB::CouchDB::Iter;
 
 sub new {
-    my $self = shift;
+    my $self    = shift;
     my $results = shift;
-    my $rows = $results->{rows};
-    
-    return bless { data => $rows,
-                   count => $results->{total_rows},
-                   offset => $results->{offset},
-                   iter => mk_iter($rows),
-                   iter_key => mk_iter($rows, 'key'),
-                   error => $results->{error},
-                   reason => $results->{reason},
-                 }, $self;
+    my $rows    = $results->{rows};
+
+    return bless {
+        data     => $rows,
+        count    => $results->{total_rows},
+        offset   => $results->{offset},
+        iter     => mk_iter($rows),
+        iter_key => mk_iter( $rows, 'key' ),
+        error    => $results->{error},
+        reason   => $results->{reason},
+    }, $self;
 }
 
 sub count {
@@ -577,39 +626,43 @@ sub errstr {
 }
 
 sub next {
-   my $self = shift;
-   return $self->{iter}->(); 
+    my $self = shift;
+    return $self->{iter}->();
 }
 
 sub next_key {
     my $self = shift;
-   return $self->{iter_key}->(); 
+    return $self->{iter_key}->();
 }
 
 sub next_for_key {
     my $self = shift;
-    my $key = shift;
-    my $ph = $key."_iter";
-    if (! defined $self->{$ph} ) {
-        my $iter = mk_iter($self->{data}, 'value', sub {
-            my $item = shift;
-            return $item 
-                if $item->{key} eq $key;
-            return;
-        });
+    my $key  = shift;
+    my $ph   = $key . "_iter";
+    if ( !defined $self->{$ph} ) {
+        my $iter = mk_iter(
+            $self->{data},
+            'value',
+            sub {
+                my $item = shift;
+                return $item
+                  if $item->{key} eq $key;
+                return;
+            }
+        );
         $self->{$ph} = $iter;
     }
     return $self->{$ph}->();
 }
 
 sub mk_iter {
-    my $rows = shift;
-    my $key = shift || 'value';
+    my $rows   = shift;
+    my $key    = shift || 'value';
     my $filter = shift || sub { return $_ };
     my $mapper = sub {
         my $row = shift;
         return @{ $row->{$key} }
-            if ref($row->{$key}) eq 'ARRAY' && $key ne 'key';
+          if ref( $row->{$key} ) eq 'ARRAY' && $key ne 'key';
         return $row->{$key};
     };
     my @list = map { $mapper->($_) } grep { $filter->($_) } @$rows;
@@ -625,9 +678,9 @@ sub mk_iter {
 package DB::CouchDB::Result;
 
 sub new {
-    my $self = shift;
+    my $self   = shift;
     my $result = shift;
-    
+
     return bless $result, $self;
 }
 
@@ -683,5 +736,19 @@ L<DB::CouchDB::Schema> - higher level wrapper with some schema handling function
 
 =back
 
-=cut
+
+
+=head1 SUBROUTINES/METHODS
+
+=head2 json_pretty
+
+Pass through method to JSON->pretty($enable)
+
+
+
+=head2 json_compact
+
+Pass through method to JSON->compact($enable)
+
+
 
