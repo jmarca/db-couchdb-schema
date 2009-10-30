@@ -152,12 +152,12 @@ sub json_pretty {
     return $self;
 }
 
-sub json_compact {
+sub json_shrink {
     my $self = shift;
     my $enable  = shift;
 
     my $json = $self->json();
-    $json->compact($enable);
+    $json->shrink($enable);
     return $self;
 }
 
@@ -746,9 +746,9 @@ Pass through method to JSON->pretty($enable)
 
 
 
-=head2 json_compact
+=head2 json_shrink
 
-Pass through method to JSON->compact($enable)
+Pass through method to JSON->shrink($enable)
 
 
 
