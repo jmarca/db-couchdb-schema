@@ -143,6 +143,15 @@ sub handle_blessed {
     return $self;
 }
 
+sub json_utf8 {
+    my $self = shift;
+    my $enable  = shift;
+
+    my $json = $self->json();
+    $json->utf8($enable);
+    return $self;
+}
+
 sub json_pretty {
     my $self = shift;
     my $enable  = shift;
@@ -180,7 +189,7 @@ sub all_dbs {
 
 =head2 all_docs
 
-    my $docs = $db->all_dbs() #returns a DB::CouchDB::Iterator of
+    my $docs = $db->all_docs() #returns a DB::CouchDB::Iterator of
                              #all documents in this database
 
 =cut
