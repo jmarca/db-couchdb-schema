@@ -143,15 +143,6 @@ sub handle_blessed {
     return $self;
 }
 
-sub json_utf8 {
-    my $self = shift;
-    my $enable  = shift;
-
-    my $json = $self->json();
-    $json->utf8($enable);
-    return $self;
-}
-
 sub json_pretty {
     my $self = shift;
     my $enable  = shift;
