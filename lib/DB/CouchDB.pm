@@ -172,7 +172,7 @@ sub all_dbs {
     my $args = shift;                   ## do we want to reduce the view?
     my $uri  = $self->_uri_all_dbs();
     if ($args) {
-        my $argstring = _valid_view_args($args);
+        my $argstring = $self->_valid_view_args($args);
         $uri->query($argstring);
     }
     return $self->_call( GET => $uri );
@@ -190,7 +190,7 @@ sub all_docs {
     my $args = shift;
     my $uri  = $self->_uri_db_docs();
     if ($args) {
-        my $argstring = _valid_view_args($args);
+        my $argstring = $self->_valid_view_args($args);
         $uri->query($argstring);
     }
     return DB::CouchDB::Iter->new( $self->_call( GET => $uri ) );
@@ -466,25 +466,30 @@ sub view {
     my $args = shift;                        ## do we want to reduce the view?
     my $uri  = $self->_uri_db_view($view);
     if ($args) {
-        my $argstring = _valid_view_args($args);
+        my $argstring = $self->_valid_view_args($args);
         $uri->query($argstring);
     }
     return DB::CouchDB::Iter->new( $self->_call( GET => $uri ) );
 }
 
+## from the couchdb api:  
+### key, startkey, and endkey need to be properly JSON encoded values
+### (for example, startkey="string" for a string value).
+## so I added json encoding here
+
 sub _valid_view_args {
+    my $self = shift;
     my $args = shift;
     my $string;
-    my @str_parts = map { "$_=$args->{$_}" } keys %$args;
-    $string = join( '&', @str_parts );
-
+    my @str_parts = map { join q{=},$_,$self->json()->encode($args->{$_}) } keys %{$args};
+    $string = join q{&}, @str_parts ;
     return $string;
 }
 
 sub uri {
     my $self = shift;
     my $u    = URI->new();
-    $u->scheme("http");
+    $u->scheme('http');
     $u->host( $self->{host} . ':' . $self->{port} );
     return $u;
 }
