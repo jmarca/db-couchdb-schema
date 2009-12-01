@@ -480,8 +480,12 @@ sub view {
 sub _valid_view_args {
     my $self = shift;
     my $args = shift;
+    my $json = $self->json();
+    my $enabled = $json->get_allow_nonref();
+    $json->allow_nonref(1);
     my $string;
-    my @str_parts = map { join q{=},$_,$self->json()->encode($args->{$_}) } keys %{$args};
+    my @str_parts = map { join q{=},$_,$json->encode($args->{$_}) } keys %{$args};
+    $json->allow_nonref($enabled);
     $string = join q{&}, @str_parts ;
     return $string;
 }
