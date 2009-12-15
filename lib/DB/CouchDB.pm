@@ -6,6 +6,7 @@ use JSON -convert_blessed_universally;
 use LWP::UserAgent;
 use URI;
 use Encode;
+use URI::Escape;
 use Carp;
 
 =head1 NAME
@@ -56,6 +57,8 @@ sub new {
     my ($class,%opts)  = @_;
     $opts{port} = 5984
       if ( !exists $opts{port} );
+    $opts{db} =  uri_escape($opts{db});
+
     my $obj = {%opts};
     $obj->{json} = JSON->new();
     return bless $obj, $class;
@@ -337,6 +340,8 @@ now:
 also, if you stuff the id into the doc as the $doc->{'_id'}, then the 'id' parameter field is optional, as whatever
 id is stored in the doc will be used instead.
 
+also, couchdb allows '/' in the _id of a document, but it must be url encoded
+
 =cut
 
 sub create_named_doc {
@@ -353,6 +358,7 @@ sub create_named_doc {
             reason => 'no id in arguments hash, or in document'
         };
     }
+    $id =  uri_escape($id);
     my $jdoc = $self->json()->encode($doc);
     return DB::CouchDB::Result->new(
         $self->_call( PUT => $self->_uri_db_doc($id), $jdoc ) );
@@ -427,9 +433,10 @@ Gets a doc in the database.
 
 sub get_doc {
     my $self = shift;
-    my $doc  = shift;
+    my $id  = shift;
+    $id = uri_escape($id);
     return DB::CouchDB::Result->new(
-        $self->_call( GET => $self->_uri_db_doc($doc) ) );
+        $self->_call( GET => $self->_uri_db_doc($id) ) );
 }
 
 =head2 view
