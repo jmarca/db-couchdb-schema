@@ -37,7 +37,8 @@ testclass exercises DB::CouchDB {
                 }
 
                 $db = $test->subject->new(
-                    host       => 'localhost',
+                    host       => $ENV{CDB_HOST},
+                    port       => $ENV{CDB_PORT},
                     db         => 'test DB::CouchDB',
                     'user'     => $ENV{CDB_USER},
                     'password' => $ENV{CDB_PASS},
@@ -51,7 +52,8 @@ testclass exercises DB::CouchDB {
                   'database creation should fail with bad db name';
 
                 $db = $test->subject->new(
-                    host       => 'localhost',
+                    host       => $ENV{CDB_HOST},
+                    port       => $ENV{CDB_PORT},
                     db         => 'test_DB_CouchDB',
                     'user'     => $ENV{CDB_USER},
                     'password' => $ENV{CDB_PASS}
@@ -63,7 +65,8 @@ testclass exercises DB::CouchDB {
                   'database creation should fail with bad db name';
 
                 $db = $test->subject->new(
-                    host       => 'localhost',
+                    host       => $ENV{CDB_HOST},
+                    port       => $ENV{CDB_PORT},
                     db         => 'test_db_couchdb',
                     'user'     => $ENV{CDB_USER},
                     'password' => $ENV{CDB_PASS}
