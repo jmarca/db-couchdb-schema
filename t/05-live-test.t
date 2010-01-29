@@ -48,7 +48,7 @@ testclass exercises DB::CouchDB {
                 $rs = $db->create_db;
                 isnt $rs->err, undef,
                   'database creation should fail with bad db name';
-                is $rs->errstr, 'illegal_database_name',
+                is $rs->errstr, 'Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed',
                   'database creation should fail with bad db name';
 
                 $db = $test->subject->new(
@@ -61,7 +61,7 @@ testclass exercises DB::CouchDB {
                 is ref($db), $test->subject, 'db object created okay';
                 isnt $rs->err, undef,
                   'database creation should fail with bad db name';
-                is $rs->errstr, 'illegal_database_name',
+                is $rs->errstr, 'Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed',
                   'database creation should fail with bad db name';
 
                 $db = $test->subject->new(
