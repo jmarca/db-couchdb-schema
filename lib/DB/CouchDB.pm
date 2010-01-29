@@ -439,6 +439,51 @@ sub get_doc {
         $self->_call( GET => $self->_uri_db_doc($id) ) );
 }
 
+
+
+
+=head2 doc_add_attachment
+
+Add an attachment ot a doc in the database (or implicitly create the doc)
+
+    my $args = {};
+    $args->{'doc'}          =>   $doc,  # required unless passing id and rev
+    $args->{'id'}	     =>   $id,  # required if there is no doc or if implicitly creating
+    $args->{'rev'}	     =>   $rev, # required if doc exists already
+    $args->{'attachment'}   =>   $attachment, #reqired.  Something lwp
+    $args->{'content_type'} =>   $content_type,
+
+    my $result = $db->doc_add_attachment($docname,$args) #returns a DB::CouchDB::Result object
+
+=cut
+
+sub doc_add_attachment {
+    my $self         = shift;
+    my $args         = shift;
+    my $doc          = $args->{'doc'};
+    my $id           = $args->{'id'};
+    my $rev          = $args->{'rev'};
+    my $attachment   = $args->{'attachment'};
+    my $content_type = $args->{'content_type'};
+    if ( !$id && $doc ) {
+        $id = $doc->{'_id'};
+    }
+    if ( !$id ) {
+        return DB::CouchDB::Result->new(
+            {
+                error  => '0',
+                reason => 'no id in arguments hash, or in document'
+            }
+        );
+    }
+    if ( !$rev && $doc ) {
+        $rev = $doc->{'_rev'};
+    }
+    my $uri = $self->_uri_db_doc_attachment($id) $uri->query( 'rev=' . $rev );
+    return DB::CouchDB::Result->new(
+        $self->_call( PUT => $uri, $attachment, $content_type ) );
+}
+
 =head2 view
 
 Returns a views results from the database.
@@ -578,14 +623,33 @@ sub uri_db_temp_view {
 
 }
 
+# put in attachment api here
+# Standalone Attachments
+
+sub _uri_db_doc_attachment {
+    my $self = shift;
+    my $db   = $self->{db};
+    my $doc  = shift;
+    my $uri  = $self->uri();
+    $uri->path( join q{/}, $db ,$doc,'attachment');
+    return $uri;
+}
+
+
 sub _call {
     my $self    = shift;
     my $method  = shift;
     my $uri     = shift;
     my $content = shift;
+    my $attachment = shift;
 
     my $req = HTTP::Request->new( $method, $uri );
-    $req->content( Encode::encode( 'utf8', $content ) );
+    if($attachment){
+      $req->content_type('form_data');
+      $req->content( [ 'file'  => $content,   ]);
+    }else{
+      $req->content( Encode::encode( 'utf8', $content ) );
+    }
 
     my $ua = LWP::UserAgent->new();
 
