@@ -418,6 +418,9 @@ sub delete_doc {
     my $self = shift;
     my $doc  = shift;
     my $rev  = shift;
+    if(!$rev){
+      $rev = $doc->{'_rev'};
+    }
     my $uri  = $self->_uri_db_doc($doc);
     $uri->query( 'rev=' . $rev );
     return DB::CouchDB::Result->new( $self->_call( DELETE => $uri ) );
