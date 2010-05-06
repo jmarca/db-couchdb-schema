@@ -9,7 +9,7 @@ testclass exercises DB::CouchDB {
         use_ok $test->subject;
       }
 
-      test creating named documents >> 16 {
+      test creating named documents >> 17 {
         lives_and {
             my $db;
             $db = $test->subject->new(
@@ -104,6 +104,20 @@ testclass exercises DB::CouchDB {
                 );
                 is $db_doc->{'_id'}, $doc->{'_id'},
                   'check names with slashes are okay';
+                diag(
+                    'get named document response is ',
+                    Data::Dumper::Dumper($db_doc)
+                );
+
+                $db_doc = $db->get_doc( $doc->{'_id'} );
+
+                $db->delete_doc( $db_doc );
+                $db_doc = $db->get_doc( $db_doc->{'_id'}  );
+                diag(
+                    'response to delete then get call is ',
+                    Data::Dumper::Dumper($db_doc)
+                );
+                is $db_doc->err,  'not_found', 'doc deleted using its own _rev';
 
                 # delete the test db
 

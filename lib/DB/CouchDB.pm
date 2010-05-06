@@ -337,10 +337,14 @@ now:
 
     my $result = $db->create_named_doc({'id'=>'somedocid','doc'=>$doc}) #returns a DB::CouchDB::Result object
 
-also, if you stuff the id into the doc as the $doc->{'_id'}, then the 'id' parameter field is optional, as whatever
-id is stored in the doc will be used instead.
+also, if you stuff the id into the doc as the $doc->{'_id'}, then the
+'id' parameter field is optional, as whatever id is stored in the doc
+will be used instead.
 
 also, couchdb allows '/' in the _id of a document, but it must be url encoded
+
+note that the response is not a proper couchdb document, in that id
+and rev are not _id and _rev fields, but rather 'id' and 'rev'.  Instead you are getting the response to the PUT statement.
 
 =cut
 
@@ -406,19 +410,32 @@ sub update_doc {
 
 =head2 delete_doc
 
-Deletes a doc in the database. you must supply a rev parameter to represent the
-revision of the doc you are updating. If the revision is not the current revision 
-of the doc the update will fail.
+Deletes a doc in the database. you must supply a rev parameter to
+represent the revision of the doc you are updating. If the revision is
+not the current revision of the doc the update will fail.
+
+the passed arguments can either be an id and a rev, or else you can
+just pass the doc itself, and the id and rev will be extracted from
+that.
 
     my $result = $db->delete_doc($docname, $rev) #returns a DB::CouchDB::Result object
 
-=cut
+    my $otherresult = $db->delete_doc($doc) #returns a DB::CouchDB::Result object
 
+=cut
 sub delete_doc {
     my $self = shift;
     my $doc  = shift;
     my $rev  = shift;
-    my $uri  = $self->_uri_db_doc($doc);
+    my $id;
+    if(!$rev){
+      $rev = $doc->{'_rev'};
+      $id = $doc->{'_id'};
+    }else{
+      $id=$doc;
+    }
+    $id =  uri_escape($id);
+    my $uri  = $self->_uri_db_doc($id);
     $uri->query( 'rev=' . $rev );
     return DB::CouchDB::Result->new( $self->_call( DELETE => $uri ) );
 }
