@@ -2,6 +2,7 @@ use Test::Class::Sugar;
 
 testclass exercises DB::CouchDB {
 
+    use Image::Info qw(image_info);
     # Test::Most has been magically included
     # 'warnings' and 'strict' are turned on
 
@@ -9,7 +10,7 @@ testclass exercises DB::CouchDB {
         use_ok $test->subject;
       }
 
-      test creating named documents >> 19 {
+      test creating named documents >> 20 {
         lives_and {
             my $db;
             $db = $test->subject->new(
@@ -32,7 +33,7 @@ testclass exercises DB::CouchDB {
                 if ( !$ENV{CDB_USER} || !$ENV{CDB_PASS} ) {
                     skip(
 'DBI_DSN contains no database option, so skipping these tests',
-                        16
+                        17
                     );
                 }
 
@@ -123,7 +124,7 @@ testclass exercises DB::CouchDB {
                 );
                 is $attachment_result->err,  undef, 'no problem adding attachment';
 
-		my $attachment_result = $db->doc_add_attachment({'id'=>'/an even stupider// very /stupid/name/',
+		$attachment_result = $db->doc_add_attachment({'id'=>'/an even stupider// very /stupid/name/',
 					 'attachment'=>'t/pic.jpg',
 					});
 
@@ -133,6 +134,31 @@ testclass exercises DB::CouchDB {
                     Data::Dumper::Dumper($attachment_result)
                 );
                 is $attachment_result->err,  undef, 'no problem adding attachment';
+
+		# test providing content blob directly
+		my $data;
+		my $fh = IO::File->new();
+		if ( $fh->open('< t/pic.jpg') ) {
+		  while (<$fh>) {
+		    $data .= $_;
+		  }
+		}
+		undef $fh;    # automatically closes the file
+		my $info = image_info(\$data);
+
+		$attachment_result = $db->doc_add_attachment({'id'=>'test/blob/content/passed/',
+							      'attachment'=>'t/pic.jpg',
+							      'content'=>$data,
+							      'header'=> {'Content_Type'=>$info->{'file_media_type'},},
+							     });
+                diag(
+                    'response to  the attachment call is ',
+                    Data::Dumper::Dumper($attachment_result)
+                );
+                is $attachment_result->err,  undef, 'no problem adding attachment';
+
+
+
 
                 $db->delete_doc( $db_doc );
                 $db_doc = $db->get_doc( $db_doc->{'_id'}  );
