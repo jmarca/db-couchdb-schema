@@ -7,6 +7,7 @@ use LWP::UserAgent;
 use URI;
 use Encode;
 use URI::Escape;
+use HTTP::Headers;
 use Carp;
 
 =head1 NAME
@@ -461,7 +462,7 @@ sub get_doc {
 
 =head2 doc_add_attachment
 
-Add an attachment ot a doc in the database (or implicitly create the doc)
+Add an attachment to a doc in the database (or implicitly create the doc)
 
     my $args = {};
     $args->{'doc'}          =>   $doc,  # required unless passing id and rev
@@ -496,9 +497,12 @@ sub doc_add_attachment {
     if ( !$rev && $doc ) {
         $rev = $doc->{'_rev'};
     }
-    my $uri = $self->_uri_db_doc_attachment($id) $uri->query( 'rev=' . $rev );
+    my $uri = $self->_uri_db_doc_attachment($id);
+    if($rev){
+      $uri->query( 'rev=' . $rev );
+    }
     return DB::CouchDB::Result->new(
-        $self->_call( PUT => $uri, $attachment, $content_type ) );
+        $self->_call( PUT => $uri, $attachment, 1 ) );  # I hate this library right now
 }
 
 =head2 view
@@ -509,12 +513,12 @@ Returns a views results from the database.
 
 =head3 A note about view args:
 
-the view args allow you to constrain and/or window the results that the 
+the view args allow you to constrain and/or window the results that the
 view gives back. Some of the ones you will probably want to use are:
 
     group => "true"      #turn on the reduce portion of your view
     key   => '"keyname"' # only gives back results with a certain key
-    
+
     #only return results starting at startkey and goint up to endkey
     startkey => '"startkey"',
     endkey   => '"endkey"'
@@ -541,7 +545,7 @@ sub view {
     return DB::CouchDB::Iter->new( $self->_call( GET => $uri ) );
 }
 
-## from the couchdb api:  
+## from the couchdb api:
 ### key, startkey, and endkey need to be properly JSON encoded values
 ### (for example, startkey="string" for a string value).
 ## so I added json encoding here
@@ -646,10 +650,32 @@ sub uri_db_temp_view {
 sub _uri_db_doc_attachment {
     my $self = shift;
     my $db   = $self->{db};
-    my $doc  = shift;
+    my $id  = shift;
+    $id = uri_escape($id);
     my $uri  = $self->uri();
-    $uri->path( join q{/}, $db ,$doc,'attachment');
+    $uri->path( join q{/}, $db ,$id,'attachment');
     return $uri;
+}
+
+sub _process_attachment_file {
+  # ripped off from LWP POST processing in Request::Common
+  my $self=shift;
+  my $file=shift;
+  my $h = HTTP::Headers->new();
+  my $content;
+  if ($file) {
+    open(my $fh, "<", $file) or Carp::croak("Can't open file $file: $!");
+    binmode($fh);
+    local($/) = undef; # slurp files
+    $content = <$fh>;
+    close($fh);
+  }
+  unless ($h->header("Content-Type")) {
+    require LWP::MediaTypes;
+    LWP::MediaTypes::guess_media_type($file, $h);
+  }
+  return [$h,$content];
+
 }
 
 
@@ -662,8 +688,8 @@ sub _call {
 
     my $req = HTTP::Request->new( $method, $uri );
     if($attachment){
-      $req->content_type('form_data');
-      $req->content( [ 'file'  => $content,   ]);
+      my $processed_file=$self->_process_attachment_file($content);
+      $req = HTTP::Request->new( $method, $uri, $processed_file->[0],$processed_file->[1]);
     }else{
       $req->content( Encode::encode( 'utf8', $content ) );
     }
@@ -809,7 +835,7 @@ L<LWP::UserAgent>
 
 L<URI>
 
-=item * 
+=item *
 
 L<JSON>
 
@@ -817,7 +843,7 @@ L<JSON>
 
 =head1 SEE ALSO
 
-=over 4 
+=over 4
 
 =item *
 
