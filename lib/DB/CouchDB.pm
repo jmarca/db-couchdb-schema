@@ -7,6 +7,7 @@ use LWP::UserAgent;
 use URI;
 use Encode;
 use URI::Escape;
+use HTTP::Headers;
 use Carp;
 
 =head1 NAME
@@ -337,10 +338,14 @@ now:
 
     my $result = $db->create_named_doc({'id'=>'somedocid','doc'=>$doc}) #returns a DB::CouchDB::Result object
 
-also, if you stuff the id into the doc as the $doc->{'_id'}, then the 'id' parameter field is optional, as whatever
-id is stored in the doc will be used instead.
+also, if you stuff the id into the doc as the $doc->{'_id'}, then the
+'id' parameter field is optional, as whatever id is stored in the doc
+will be used instead.
 
 also, couchdb allows '/' in the _id of a document, but it must be url encoded
+
+note that the response is not a proper couchdb document, in that id
+and rev are not _id and _rev fields, but rather 'id' and 'rev'.  Instead you are getting the response to the PUT statement.
 
 =cut
 
@@ -406,22 +411,32 @@ sub update_doc {
 
 =head2 delete_doc
 
-Deletes a doc in the database. you must supply a rev parameter to represent the
-revision of the doc you are updating. If the revision is not the current revision 
-of the doc the update will fail.
+Deletes a doc in the database. you must supply a rev parameter to
+represent the revision of the doc you are updating. If the revision is
+not the current revision of the doc the update will fail.
+
+the passed arguments can either be an id and a rev, or else you can
+just pass the doc itself, and the id and rev will be extracted from
+that.
 
     my $result = $db->delete_doc($docname, $rev) #returns a DB::CouchDB::Result object
 
-=cut
+    my $otherresult = $db->delete_doc($doc) #returns a DB::CouchDB::Result object
 
+=cut
 sub delete_doc {
     my $self = shift;
     my $doc  = shift;
     my $rev  = shift;
+    my $id;
     if(!$rev){
       $rev = $doc->{'_rev'};
+      $id = $doc->{'_id'};
+    }else{
+      $id=$doc;
     }
-    my $uri  = $self->_uri_db_doc($doc);
+    $id =  uri_escape($id);
+    my $uri  = $self->_uri_db_doc($id);
     $uri->query( 'rev=' . $rev );
     return DB::CouchDB::Result->new( $self->_call( DELETE => $uri ) );
 }
@@ -447,7 +462,7 @@ sub get_doc {
 
 =head2 doc_add_attachment
 
-Add an attachment ot a doc in the database (or implicitly create the doc)
+Add an attachment to a doc in the database (or implicitly create the doc)
 
     my $args = {};
     $args->{'doc'}          =>   $doc,  # required unless passing id and rev
@@ -482,9 +497,12 @@ sub doc_add_attachment {
     if ( !$rev && $doc ) {
         $rev = $doc->{'_rev'};
     }
-    my $uri = $self->_uri_db_doc_attachment($id) $uri->query( 'rev=' . $rev );
+    my $uri = $self->_uri_db_doc_attachment($id);
+    if($rev){
+      $uri->query( 'rev=' . $rev );
+    }
     return DB::CouchDB::Result->new(
-        $self->_call( PUT => $uri, $attachment, $content_type ) );
+        $self->_call( PUT => $uri, $attachment, 1 ) );  # I hate this library right now
 }
 
 =head2 view
@@ -495,12 +513,12 @@ Returns a views results from the database.
 
 =head3 A note about view args:
 
-the view args allow you to constrain and/or window the results that the 
+the view args allow you to constrain and/or window the results that the
 view gives back. Some of the ones you will probably want to use are:
 
     group => "true"      #turn on the reduce portion of your view
     key   => '"keyname"' # only gives back results with a certain key
-    
+
     #only return results starting at startkey and goint up to endkey
     startkey => '"startkey"',
     endkey   => '"endkey"'
@@ -527,7 +545,7 @@ sub view {
     return DB::CouchDB::Iter->new( $self->_call( GET => $uri ) );
 }
 
-## from the couchdb api:  
+## from the couchdb api:
 ### key, startkey, and endkey need to be properly JSON encoded values
 ### (for example, startkey="string" for a string value).
 ## so I added json encoding here
@@ -632,10 +650,32 @@ sub uri_db_temp_view {
 sub _uri_db_doc_attachment {
     my $self = shift;
     my $db   = $self->{db};
-    my $doc  = shift;
+    my $id  = shift;
+    $id = uri_escape($id);
     my $uri  = $self->uri();
-    $uri->path( join q{/}, $db ,$doc,'attachment');
+    $uri->path( join q{/}, $db ,$id,'attachment');
     return $uri;
+}
+
+sub _process_attachment_file {
+  # ripped off from LWP POST processing in Request::Common
+  my $self=shift;
+  my $file=shift;
+  my $h = HTTP::Headers->new();
+  my $content;
+  if ($file) {
+    open(my $fh, "<", $file) or Carp::croak("Can't open file $file: $!");
+    binmode($fh);
+    local($/) = undef; # slurp files
+    $content = <$fh>;
+    close($fh);
+  }
+  unless ($h->header("Content-Type")) {
+    require LWP::MediaTypes;
+    LWP::MediaTypes::guess_media_type($file, $h);
+  }
+  return [$h,$content];
+
 }
 
 
@@ -648,8 +688,8 @@ sub _call {
 
     my $req = HTTP::Request->new( $method, $uri );
     if($attachment){
-      $req->content_type('form_data');
-      $req->content( [ 'file'  => $content,   ]);
+      my $processed_file=$self->_process_attachment_file($content);
+      $req = HTTP::Request->new( $method, $uri, $processed_file->[0],$processed_file->[1]);
     }else{
       $req->content( Encode::encode( 'utf8', $content ) );
     }
@@ -795,7 +835,7 @@ L<LWP::UserAgent>
 
 L<URI>
 
-=item * 
+=item *
 
 L<JSON>
 
@@ -803,7 +843,7 @@ L<JSON>
 
 =head1 SEE ALSO
 
-=over 4 
+=over 4
 
 =item *
 

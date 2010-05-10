@@ -9,7 +9,7 @@ testclass exercises DB::CouchDB {
         use_ok $test->subject;
       }
 
-      test creating named documents >> 16 {
+      test creating named documents >> 19 {
         lives_and {
             my $db;
             $db = $test->subject->new(
@@ -32,7 +32,7 @@ testclass exercises DB::CouchDB {
                 if ( !$ENV{CDB_USER} || !$ENV{CDB_PASS} ) {
                     skip(
 'DBI_DSN contains no database option, so skipping these tests',
-                        14
+                        16
                     );
                 }
 
@@ -104,6 +104,43 @@ testclass exercises DB::CouchDB {
                 );
                 is $db_doc->{'_id'}, $doc->{'_id'},
                   'check names with slashes are okay';
+                diag(
+                    'get named document response is ',
+                    Data::Dumper::Dumper($db_doc)
+                );
+
+                $db_doc = $db->get_doc( $doc->{'_id'} );
+
+		# test attaching data
+
+		my $attachment_result = $db->doc_add_attachment({'id'=>'/a very /stupid/name/',
+					 'attachment'=>'README',
+					});
+
+                diag(
+                    'response to  the attachment call is ',
+                    Data::Dumper::Dumper($attachment_result)
+                );
+                is $attachment_result->err,  undef, 'no problem adding attachment';
+
+		my $attachment_result = $db->doc_add_attachment({'id'=>'/an even stupider// very /stupid/name/',
+					 'attachment'=>'t/pic.jpg',
+					});
+
+		# push up an image, test mime type (TODO.. I checked it with futon manually for a jpg file)
+                diag(
+                    'response to  the attachment call is ',
+                    Data::Dumper::Dumper($attachment_result)
+                );
+                is $attachment_result->err,  undef, 'no problem adding attachment';
+
+                $db->delete_doc( $db_doc );
+                $db_doc = $db->get_doc( $db_doc->{'_id'}  );
+                diag(
+                    'response to delete then get call is ',
+                    Data::Dumper::Dumper($db_doc)
+                );
+                is $db_doc->err,  'not_found', 'doc deleted using its own _rev';
 
                 # delete the test db
 
