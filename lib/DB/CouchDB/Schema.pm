@@ -3,7 +3,7 @@ use DB::CouchDB;
 use Moose;
 use Carp;
 
-our $VERSION = '0.3.05';
+our $VERSION = '0.4.00.1';
 
 has server => ( is => 'rw', isa => 'DB::CouchDB');
 has schema => ( is => 'rw', isa => 'ArrayRef');
@@ -280,7 +280,7 @@ delete a doc from the database
 
 update a doc in the database
 
-=head2 create_doc(%sargs) 
+=head2 create_doc(%sargs)
 
 create a doc on the server. accepts the following arguments
 
@@ -292,7 +292,7 @@ create a doc on the server. accepts the following arguments
 create a new database in CouchDB and return a DB::CouchDB::Schema object for it.
 
 It takes the following argument
-   
+
    db => 'database name' # not optional the name of the database to create.
 
 =head2 wipe

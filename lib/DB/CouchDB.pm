@@ -8,6 +8,7 @@ use URI;
 use Encode;
 use URI::Escape;
 use Carp;
+our $VERSION = '0.4.00.1';
 
 =head1 NAME
 
@@ -464,12 +465,12 @@ Returns a views results from the database.
 
 =head3 A note about view args:
 
-the view args allow you to constrain and/or window the results that the 
+the view args allow you to constrain and/or window the results that the
 view gives back. Some of the ones you will probably want to use are:
 
     group => "true"      #turn on the reduce portion of your view
     key   => '"keyname"' # only gives back results with a certain key
-    
+
     #only return results starting at startkey and goint up to endkey
     startkey => '"startkey"',
     endkey   => '"endkey"'
@@ -496,7 +497,7 @@ sub view {
     return DB::CouchDB::Iter->new( $self->_call( GET => $uri ) );
 }
 
-## from the couchdb api:  
+## from the couchdb api:
 ### key, startkey, and endkey need to be properly JSON encoded values
 ### (for example, startkey="string" for a string value).
 ## so I added json encoding here
@@ -745,7 +746,7 @@ L<LWP::UserAgent>
 
 L<URI>
 
-=item * 
+=item *
 
 L<JSON>
 
@@ -753,7 +754,7 @@ L<JSON>
 
 =head1 SEE ALSO
 
-=over 4 
+=over 4
 
 =item *
 
