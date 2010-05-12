@@ -502,7 +502,7 @@ sub doc_add_attachment {
         );
     }
     if ( !$rev && $doc ) {
-        $rev = $doc->{'_rev'};
+        $rev = $doc->{'_rev'} || $doc->{'rev'};
     }
     my $uri = $self->_uri_db_doc_attachment($id,$attachment);
     if($rev){
