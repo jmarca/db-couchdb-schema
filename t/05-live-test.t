@@ -114,6 +114,7 @@ testclass exercises DB::CouchDB {
 
 		# test attaching data
 
+                diag('going to attache README to db_doc' , Data::Dumper::Dumper($db_doc));
 		my $attachment_result = $db->doc_add_attachment({'doc'=>$db_doc,
 					 'attachment'=>'README',
 					 'file'=>'README',
@@ -141,7 +142,6 @@ testclass exercises DB::CouchDB {
                     'response to  the attachment call is ',
                     Data::Dumper::Dumper($attachment_result)
                 );
-                is $attachment_result->err,  undef, 'no problem adding attachment';
 
 		# test providing content blob directly
 		my $data;
@@ -154,7 +154,9 @@ testclass exercises DB::CouchDB {
 		undef $fh;    # automatically closes the file
 		my $info = image_info(\$data);
 
-                $db_doc = $db->get_doc( $db_doc->{'_id'} );
+                $db_doc = $db->get_doc( $db_doc->{'_id'}||$db_doc->{'id'} );
+
+                diag('going to attache extracted version of  t/pic to db_doc' , Data::Dumper::Dumper($db_doc));
 		$attachment_result = $db->doc_add_attachment({'doc'=>$db_doc,
 							      'attachment'=>'t/pic.jpg',
 							      'content'=>$data,
@@ -166,8 +168,7 @@ testclass exercises DB::CouchDB {
                 );
                 is $attachment_result->err,  undef, 'no problem adding attachment';
 
-
-
+                diag('going to delete a document, then get it again');
 
                 $db->delete_doc( $db_doc );
                 $db_doc = $db->get_doc( $db_doc->{'_id'}  );
@@ -175,11 +176,13 @@ testclass exercises DB::CouchDB {
                     'response to delete then get call is ',
                     Data::Dumper::Dumper($db_doc)
                 );
-                is $db_doc->err,  'not_found', 'doc deleted using its own _rev';
+                is $db_doc->err,  undef, 'doc deleted using its own _rev';
 
                 # delete the test db
 
-                #$rs = $db->delete_db();
+                diag('going to delete the db');
+
+                $rs = $db->delete_db();
 
                 isa_ok $rs, 'DB::CouchDB::Result',
                   'database deletion should pass here';

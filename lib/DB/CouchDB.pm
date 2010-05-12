@@ -491,7 +491,7 @@ sub doc_add_attachment {
     my $file   = $args->{'file'};
     my $content = $args->{'content'};
     if ( !$id && $doc ) {
-        $id = $doc->{'_id'};
+        $id = $doc->{'_id'} || $doc->{'id'};
     }
     if ( !$id ) {
         return DB::CouchDB::Result->new(
@@ -712,7 +712,8 @@ sub _call_attachment {
       my $processed=$self->_process_attachment_file($file,$header);
       $req = HTTP::Request->new( $method, $uri, $processed->[0],$processed->[1]);
     }else{
-      $req = HTTP::Request->new( $method, $uri, $header,$content);
+      my $h=HTTP::Headers->new(%{$header});
+      $req = HTTP::Request->new( $method, $uri, $h,$content);
     }
     return $self->_request($req);
 }
