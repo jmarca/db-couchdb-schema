@@ -283,7 +283,10 @@ sub bulk_docs {
     my $docref    = shift;
     my $jdocs     = $self->json()->encode( { 'docs' => $docref } );
     my $uri       = $self->_uri_db_bulk_doc();
-    my $array_ref = $self->_call( POST => $uri, $jdocs );
+    my $h = HTTP::Headers->new;
+    $h->header('Content-Type' => 'application/json');
+
+    my $array_ref = $self->_call( POST => $uri, $jdocs, $h  );
     return $array_ref;
 }
 
@@ -716,8 +719,8 @@ sub _call {
     my $method  = shift;
     my $uri     = shift;
     my $content = shift;
-
-    my $req = HTTP::Request->new( $method, $uri );
+    my $header  = shift;
+    my $req = HTTP::Request->new( $method, $uri, $header );
     $req->content( Encode::encode( 'utf8', $content ) );
     return $self->_request($req);
 }
