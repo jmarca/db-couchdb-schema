@@ -2,6 +2,7 @@ use Test::Class::Sugar;
 
 testclass exercises DB::CouchDB {
 
+    use Image::Info qw(image_info);
     # Test::Most has been magically included
     # 'warnings' and 'strict' are turned on
 
@@ -9,7 +10,7 @@ testclass exercises DB::CouchDB {
         use_ok $test->subject;
       }
 
-      test creating named documents >> 17 {
+      test creating named documents >> 22 {
         lives_and {
             my $db;
             $db = $test->subject->new(
@@ -32,7 +33,7 @@ testclass exercises DB::CouchDB {
                 if ( !$ENV{CDB_USER} || !$ENV{CDB_PASS} ) {
                     skip(
 'DBI_DSN contains no database option, so skipping these tests',
-                        14
+                        19
                     );
                 }
 
@@ -109,7 +110,65 @@ testclass exercises DB::CouchDB {
                     Data::Dumper::Dumper($db_doc)
                 );
 
-                $db_doc = $db->get_doc( $doc->{'_id'} );
+                $db_doc = $db->get_doc( $db_doc->{'_id'} );
+
+		# test attaching data
+
+                diag('going to attache README to db_doc' , Data::Dumper::Dumper($db_doc));
+		my $attachment_result = $db->doc_add_attachment({'doc'=>$db_doc,
+					 'attachment'=>'README',
+					 'file'=>'README',
+					});
+
+                diag(
+                    'response to  the attachment call is ',
+                    Data::Dumper::Dumper($attachment_result)
+                );
+                is $attachment_result->err,  undef, 'no problem adding attachment';
+
+		$attachment_result = $db->doc_add_attachment({'id'=>'/an even stupider// very /stupid/name/',
+					 'attachment'=>'t/pic.jpg',
+					 'file'=>'t/pic.jpg',
+					});
+                is $attachment_result->err,  undef, 'no problem adding attachment';
+		$attachment_result = $db->doc_add_attachment({'id'=>'plain/read/me',
+					 'attachment'=>'the/README',
+					 'file'=>'README',
+					});
+
+                is $attachment_result->err,  undef, 'no problem adding attachment';
+		# push up an image, test mime type (TODO.. I checked it with futon manually for a jpg file)
+                diag(
+                    'response to  the attachment call is ',
+                    Data::Dumper::Dumper($attachment_result)
+                );
+
+		# test providing content blob directly
+		my $data;
+		my $fh = IO::File->new();
+		if ( $fh->open('< t/pic.jpg') ) {
+		  while (<$fh>) {
+		    $data .= $_;
+		  }
+		}
+		undef $fh;    # automatically closes the file
+		my $info = image_info(\$data);
+
+                $db_doc = $db->get_doc( $db_doc->{'_id'}||$db_doc->{'id'} );
+
+                diag('going to attache extracted version of  t/pic to db_doc' , Data::Dumper::Dumper($db_doc));
+		$attachment_result = $db->doc_add_attachment({'doc'=>$db_doc,
+							      'attachment'=>'t/pic.jpg',
+							      'content'=>$data,
+							      'header'=> {'Content_Type'=>$info->{'file_media_type'},},
+							     });
+                diag(
+                    'response to  the attachment call to an existing doc with pre-parsed data is ',
+                    Data::Dumper::Dumper($attachment_result)
+                );
+                is $attachment_result->err,  undef, 'no problem adding attachment';
+
+                diag('going to delete a document, then get it again');
 
                 $db->delete_doc( $db_doc );
                 $db_doc = $db->get_doc( $db_doc->{'_id'}  );
@@ -117,9 +176,11 @@ testclass exercises DB::CouchDB {
                     'response to delete then get call is ',
                     Data::Dumper::Dumper($db_doc)
                 );
-                is $db_doc->err,  'not_found', 'doc deleted using its own _rev';
+                is $db_doc->err,  undef, 'doc deleted using its own _rev';
 
                 # delete the test db
+
+                diag('going to delete the db');
 
                 $rs = $db->delete_db();
 
