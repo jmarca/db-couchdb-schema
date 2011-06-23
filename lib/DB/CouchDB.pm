@@ -284,7 +284,10 @@ sub bulk_docs {
     my $docref    = shift;
     my $jdocs     = $self->json()->encode( { 'docs' => $docref } );
     my $uri       = $self->_uri_db_bulk_doc();
-    my $array_ref = $self->_call( POST => $uri, $jdocs );
+    my $h = HTTP::Headers->new;
+    $h->header('Content-Type' => 'application/json');
+
+    my $array_ref = $self->_call( POST => $uri, $jdocs, $h  );
     return $array_ref;
 }
 
@@ -487,10 +490,12 @@ sub doc_add_attachment {
     my $id           = $args->{'id'};
     my $rev          = $args->{'rev'};
     my $attachment   = $args->{'attachment'};
+    my $attach_name   = $args->{'name'} || $attachment;
     my $header = $args->{'header'};
+    my $file   = $args->{'file'};
     my $content = $args->{'content'};
     if ( !$id && $doc ) {
-        $id = $doc->{'_id'};
+        $id = $doc->{'_id'} || $doc->{'id'};
     }
     if ( !$id ) {
         return DB::CouchDB::Result->new(
@@ -501,9 +506,9 @@ sub doc_add_attachment {
         );
     }
     if ( !$rev && $doc ) {
-        $rev = $doc->{'_rev'};
+        $rev = $doc->{'_rev'} || $doc->{'rev'};
     }
-    my $uri = $self->_uri_db_doc_attachment($id);
+    my $uri = $self->_uri_db_doc_attachment($id,$attachment);
     if($rev){
       $uri->query( 'rev=' . $rev );
     }
@@ -511,7 +516,7 @@ sub doc_add_attachment {
       $content=1;
     }
     return DB::CouchDB::Result->new(
-        $self->_call_attachment( PUT => $uri, $attachment, $header, $content ) );
+        $self->_call_attachment( PUT => $uri, {'file'=>$file, 'attachment'=>$attachment, 'header'=>$header, 'content'=>$content }) );
 
     # I hate this library right now really really really need to fork
     # and make my own
@@ -664,9 +669,10 @@ sub _uri_db_doc_attachment {
     my $self = shift;
     my $db   = $self->{db};
     my $id  = shift;
+    my $attch_name = uri_escape(shift);
     $id = uri_escape($id);
     my $uri  = $self->uri();
-    $uri->path( join q{/}, $db ,$id,'attachment');
+    $uri->path( join q{/}, $db ,$id,$attch_name);
     return $uri;
 }
 
@@ -684,10 +690,10 @@ sub _process_attachment_file {
     local($/) = undef; # slurp files
     $content = <$fh>;
     close($fh);
-  }
-  unless ($h->header("Content-Type")) {
-    require LWP::MediaTypes;
-    LWP::MediaTypes::guess_media_type($file, $h);
+    unless ($h->header("Content-Type")) {
+      require LWP::MediaTypes;
+      LWP::MediaTypes::guess_media_type($file, $h);
+    }
   }
   return [$h,$content];
 
@@ -698,16 +704,20 @@ sub _call_attachment {
     my $self    = shift;
     my $method  = shift;
     my $uri     = shift;
-    my $attachment = shift;
-    my $header = shift;
-    my $content = shift;
+    my $args = shift;
+    my $attachment = $args->{'attachment'};
+    my $header =  $args->{'header'} ;
+    my $content = $args->{'content'};
+    my $file = $args->{'file'};
 
     my $req = HTTP::Request->new( $method, $uri );
-    if($attachment){
-      my $processed_file=$self->_process_attachment_file($attachment,$header,$content);
-      $req = HTTP::Request->new( $method, $uri, $processed_file->[0],$processed_file->[1]);
+
+    if($file){
+      my $processed=$self->_process_attachment_file($file,$header);
+      $req = HTTP::Request->new( $method, $uri, $processed->[0],$processed->[1]);
     }else{
-      $req->content( Encode::encode( 'utf8', $content ) );
+      my $h=HTTP::Headers->new(%{$header});
+      $req = HTTP::Request->new( $method, $uri, $h,$content);
     }
     return $self->_request($req);
 }
@@ -717,8 +727,8 @@ sub _call {
     my $method  = shift;
     my $uri     = shift;
     my $content = shift;
-
-    my $req = HTTP::Request->new( $method, $uri );
+    my $header  = shift;
+    my $req = HTTP::Request->new( $method, $uri, $header );
     $req->content( Encode::encode( 'utf8', $content ) );
     $req->header( 'Content-Type' => 'application/json' );
     return $self->_request($req);
