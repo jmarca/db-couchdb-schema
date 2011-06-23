@@ -159,8 +159,7 @@ testclass exercises DB::CouchDB {
 
                 $db->delete_doc( $db_doc );
                 $db_doc = $db->get_doc( $db_doc->{'_id'}  );
-                is $db_doc->err,  'not_found', 'doc deleted using its own _rev';
-
+                is $db_doc->err,  undef, 'doc deleted using its own _rev';
 
                 # delete the test db
 
