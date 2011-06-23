@@ -719,6 +719,7 @@ sub _call {
 
     my $req = HTTP::Request->new( $method, $uri );
     $req->content( Encode::encode( 'utf8', $content ) );
+    $req->header( 'Content-Type' => 'application/json' );
     return $self->_request($req);
 }
 
