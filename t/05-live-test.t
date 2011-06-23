@@ -49,7 +49,7 @@ testclass exercises DB::CouchDB {
                 $rs = $db->create_db;
                 isnt $rs->err, undef,
                   'database creation should fail with bad db name';
-                is $rs->errstr, 'Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed',
+                is $rs->errstr, 'Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.',
                   'database creation should fail with bad db name';
 
                 $db = $test->subject->new(
@@ -62,7 +62,7 @@ testclass exercises DB::CouchDB {
                 is ref($db), $test->subject, 'db object created okay';
                 isnt $rs->err, undef,
                   'database creation should fail with bad db name';
-                is $rs->errstr, 'Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed',
+                is $rs->errstr, 'Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.',
                   'database creation should fail with bad db name';
 
                 $db = $test->subject->new(
@@ -82,11 +82,10 @@ testclass exercises DB::CouchDB {
                     'are' => [ 'not', 'my', 'favorite', { 'breakfast' => 1 }, ]
                 };
                 my $db_doc = $db->create_doc($doc);
-                is $db_doc->{'are'}->[3]->{'breakfast'},
-                  $db->{'are'}->[3]->{'breakfast'}, 'created a document';
+                is $db_doc->{'error'}, undef, 'created a document';
 
                 my $idlist = $db->all_docs();
-                is $idlist->count, 1, 'expect one document stored in db';
+                is $idlist->count, 1, 'expect one document stored in db' . Data::Dumper::Dumper $db_doc;
 
                 # check names with slashes
                 $doc = {
@@ -94,21 +93,9 @@ testclass exercises DB::CouchDB {
                     'row' => 30
                 };
                 $db_doc = $db->create_named_doc( { 'doc' => $doc } );
-                diag(
-                    'response to create call is ',
-                    Data::Dumper::Dumper($db_doc)
-                );
                 $db_doc = $db->get_doc( $doc->{'_id'} );
-                diag(
-                    'get named document response is ',
-                    Data::Dumper::Dumper($db_doc)
-                );
                 is $db_doc->{'_id'}, $doc->{'_id'},
                   'check names with slashes are okay';
-                diag(
-                    'get named document response is ',
-                    Data::Dumper::Dumper($db_doc)
-                );
 
                 $db_doc = $db->get_doc( $doc->{'_id'} );
 
@@ -162,10 +149,6 @@ testclass exercises DB::CouchDB {
 
                 $db->delete_doc( $db_doc );
                 $db_doc = $db->get_doc( $db_doc->{'_id'}  );
-                diag(
-                    'response to delete then get call is ',
-                    Data::Dumper::Dumper($db_doc)
-                );
                 is $db_doc->err,  'not_found', 'doc deleted using its own _rev';
 
                 # delete the test db
