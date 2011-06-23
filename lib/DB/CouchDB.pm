@@ -7,6 +7,7 @@ use LWP::UserAgent;
 use URI;
 use Encode;
 use URI::Escape;
+use HTTP::Headers;
 use Carp;
 our $VERSION = '0.4.00.1';
 
@@ -457,6 +458,66 @@ sub get_doc {
         $self->_call( GET => $self->_uri_db_doc($id) ) );
 }
 
+
+
+
+=head2 doc_add_attachment
+
+Add an attachment to a doc in the database (or implicitly create the doc)
+
+    my $args = {};
+    $args->{'doc'}          =>   $doc,  # required unless passing id and rev
+    $args->{'id'}	     =>   $id,  # required if there is no doc or if implicitly creating
+    $args->{'rev'}	     =>   $rev, # required if doc exists already
+    $args->{'attachment'}   =>   $attachment, #reqired.  Something that can be read in, or just a name to give content that has already been read in
+    $args->{'content'} =>   $content to load, if $attachment is not a filename to be read in,
+    $args->{'header'} => $header for upload.  If you pass content, and
+       it isn't obvious what the media type is from the filen mane
+       (attachment parameter, then you should include in the header
+       object or hasref passed here the correct Content_Type field set
+
+    my $result = $db->doc_add_attachment($docname,$args) #returns a DB::CouchDB::Result object
+
+=cut
+
+sub doc_add_attachment {
+    my $self         = shift;
+    my $args         = shift;
+    my $doc          = $args->{'doc'};
+    my $id           = $args->{'id'};
+    my $rev          = $args->{'rev'};
+    my $attachment   = $args->{'attachment'};
+    my $header = $args->{'header'};
+    my $content = $args->{'content'};
+    if ( !$id && $doc ) {
+        $id = $doc->{'_id'};
+    }
+    if ( !$id ) {
+        return DB::CouchDB::Result->new(
+            {
+                error  => '0',
+                reason => 'no id in arguments hash, or in document'
+            }
+        );
+    }
+    if ( !$rev && $doc ) {
+        $rev = $doc->{'_rev'};
+    }
+    my $uri = $self->_uri_db_doc_attachment($id);
+    if($rev){
+      $uri->query( 'rev=' . $rev );
+    }
+    if(!$content){
+      $content=1;
+    }
+    return DB::CouchDB::Result->new(
+        $self->_call_attachment( PUT => $uri, $attachment, $header, $content ) );
+
+    # I hate this library right now really really really need to fork
+    # and make my own
+
+}
+
 =head2 view
 
 Returns a views results from the database.
@@ -596,6 +657,61 @@ sub uri_db_temp_view {
 
 }
 
+# put in attachment api here
+# Standalone Attachments
+
+sub _uri_db_doc_attachment {
+    my $self = shift;
+    my $db   = $self->{db};
+    my $id  = shift;
+    $id = uri_escape($id);
+    my $uri  = $self->uri();
+    $uri->path( join q{/}, $db ,$id,'attachment');
+    return $uri;
+}
+
+sub _process_attachment_file {
+  # ripped off from LWP POST processing in Request::Common
+  my $self=shift;
+  my $file=shift;
+  my $header=shift;
+  my $content = shift;
+  my $h = HTTP::Headers->new(%{$header});
+  # my $content;
+  if ($file && ! $content) {
+    open(my $fh, "<", $file) or Carp::croak("Can't open file $file: $!");
+    binmode($fh);
+    local($/) = undef; # slurp files
+    $content = <$fh>;
+    close($fh);
+  }
+  unless ($h->header("Content-Type")) {
+    require LWP::MediaTypes;
+    LWP::MediaTypes::guess_media_type($file, $h);
+  }
+  return [$h,$content];
+
+}
+
+
+sub _call_attachment {
+    my $self    = shift;
+    my $method  = shift;
+    my $uri     = shift;
+    my $attachment = shift;
+    my $header = shift;
+    my $content = shift;
+
+    my $req = HTTP::Request->new( $method, $uri );
+    if($attachment){
+      my $processed_file=$self->_process_attachment_file($attachment,$header,$content);
+      $req = HTTP::Request->new( $method, $uri, $processed_file->[0],$processed_file->[1]);
+    }else{
+      $req->content( Encode::encode( 'utf8', $content ) );
+    }
+    return $self->_request($req);
+}
+
 sub _call {
     my $self    = shift;
     my $method  = shift;
@@ -604,21 +720,27 @@ sub _call {
 
     my $req = HTTP::Request->new( $method, $uri );
     $req->content( Encode::encode( 'utf8', $content ) );
+    $req->header( 'Content-Type' => 'application/json' );
+    return $self->_request($req);
+}
 
-    my $ua = LWP::UserAgent->new();
+sub _request {
+  my $self=shift;
+  my $req = shift;
+  my $ua = LWP::UserAgent->new();
 
-    if ( $self->{'user'} || $self->{'password'} ) {
-        $ua->credentials( $self->credentials() );
-    }
+  if ( $self->{'user'} || $self->{'password'} ) {
+    $ua->credentials( $self->credentials() );
+  }
 
-    my $return = $ua->request($req);
-    my $response = $return->decoded_content( default_charset => 'utf8' );
-    my $decoded;
-    eval { $decoded = $self->json()->decode($response); };
-    if ($@) {
-        return { error => $return->code, reason => $response };
-    }
-    return $decoded;
+  my $return = $ua->request($req);
+  my $response = $return->decoded_content( default_charset => 'utf8' );
+  my $decoded;
+  eval { $decoded = $self->json()->decode($response); };
+  if ($@) {
+    return { error => $return->code, reason => $response };
+  }
+  return $decoded;
 }
 
 package DB::CouchDB::Iter;
