@@ -2,7 +2,9 @@ use Test::Class::Sugar;
 
 testclass exercises DB::CouchDB {
 
+
     use Image::Info qw(image_info);
+    use Data::Dumper;
     # Test::Most has been magically included
     # 'warnings' and 'strict' are turned on
 
@@ -49,7 +51,7 @@ testclass exercises DB::CouchDB {
                 $rs = $db->create_db;
                 isnt $rs->err, undef,
                   'database creation should fail with bad db name';
-                is $rs->errstr, 'Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.',
+                ok $rs->errstr =~ /Only lowercase characters \(a-z\), digits \(0-9\), and any of the characters/,
                   'database creation should fail with bad db name';
 
                 $db = $test->subject->new(
@@ -62,7 +64,7 @@ testclass exercises DB::CouchDB {
                 is ref($db), $test->subject, 'db object created okay';
                 isnt $rs->err, undef,
                   'database creation should fail with bad db name';
-                is $rs->errstr, 'Only lowercase characters (a-z), digits (0-9), and any of the characters _, $, (, ), +, -, and / are allowed. Must begin with a letter.',
+                ok $rs->errstr =~ /Only lowercase characters \(a-z\), digits \(0-9\), and any of the characters/,
                   'database creation should fail with bad db name';
 
                 $db = $test->subject->new(
