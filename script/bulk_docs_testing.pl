@@ -7,6 +7,8 @@ use Data::Dumper;
 use Carp;
 
 my $rs;
+
+# change the user and password to something real for your db
 my $db = DB::CouchDB->new(
     host     => '127.0.0.1',
     db       => 'aak',
@@ -63,4 +65,3 @@ $rs = $db->delete_db();
 1;
 
 __END__
-

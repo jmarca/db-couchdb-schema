@@ -12,15 +12,12 @@ requires 'Pod::Usage';
 requires 'Term::ReadLine';
 
 build_requires 'Test::Exception';
-build_requires 'Test::MockObject';
-build_requires 'Test::MockModule';
 build_requires 'Test::More';
 build_requires 'Test::Moose';
+build_requires 'Test::Class::Sugar';
+build_requires 'Image::Info';
 
 all_from 'lib/DB/CouchDB/Schema.pm';
-
-install_script 'couch_schema_tool.pl';
-install_script 'couch_view_tool.pl';
 
 auto_install;
 WriteAll;
