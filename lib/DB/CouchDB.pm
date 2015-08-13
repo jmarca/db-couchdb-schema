@@ -915,6 +915,3 @@ Pass through method to JSON->pretty($enable)
 =head2 json_shrink
 
 Pass through method to JSON->shrink($enable)
-
-
-
