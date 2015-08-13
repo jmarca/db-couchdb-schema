@@ -1,8 +1,41 @@
 NAME
     DB::CouchDB::Schema - A schema oriented CouchDB Module
 
+CHANGES
+    This is not longer much like DB::CouchDB::Schema by Jeremy Wall.
+    It is just what I am using to access CouchDB.
+
+NOTES ON TESTING AND USE
+    To test against a live db, you need to set some environment variables.
+    # environment vars used for testing CouchDB access
+    # CDB_USER          username
+    # CDB_PASS          your password
+    # CDB_PORT          5984
+    # CDB_HOST          localhost
+
+    CDB_USER and CDB_PASS default to '', and if they are empty, the
+    live db tests will be skipped.
+
+    If you are running with a live db with a proper admin username and
+    password and are seeing a lot of errors, then you probably have to
+    fiddle a bit with your couchdb settings.  This module relies on an
+    older way of triggering the login dialog.  I will fix it maybe
+    eentually, but to get it to work now, just do this.  In your
+    couchdb settings file, /etc/couchdb/local.ini, look for the
+    following line:
+
+    ; Uncomment next line to trigger basic-auth popup on unauthorized requests.
+    ;WWW-Authenticate = Basic realm="administrator"
+
+    Then uncomment the second line with the 'WWW-Authenticate' stuff.
+    If you change the realm from administrator, then you'll have to
+    tweak the source code here or set the realm option.
+
+
 AUTHORS
     Jeremy Wall <jeremy@marzhillstudios.com>
+    James E Marca
+
 
 COPYRIGHT
     Copyright 2008 Jeremy Wall
@@ -11,3 +44,4 @@ COPYRIGHT
     This program is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.
 
+    Copyright 2009 -- 2015 James E. Marca
